@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            margin: 20px 0;
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            border: 3px solid #000;
+            background-color: #FFF;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: 'Arial', sans-serif;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #message {
+            margin-top: 10px;
+            font-size: 18px;
+            color: green;
+            font-weight: bold;
+            font-family: 'Arial', sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Maze Game</h1>
+<canvas id="mazeCanvas"></canvas>
+<button onclick="resetMaze()">Reset Maze</button>
+<div id="message"></div>
+
+<script>
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    const cellSize = 50; // Size of each cell in the maze
+
+    // Example matrix
+    const matrix = [
+        [0, 0, 1, 1, 1, 0, 0, 0, 1, 0],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+        [1, 0, 1, 1, 1, 0, 1, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+        [0, 0, 1, 1, 0, 1, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0],
+        [1, 1, 1, 1, 0, 1, 0, 1, 1, 0],
+        [1, 1, 0, 0, 0, 1, 0, 0, 0, 0]
+    ];
+
+    // Set canvas size based on matrix size
+    canvas.width = matrix[0].length * cellSize;
+    canvas.height = matrix.length * cellSize;
+
+    // Load icon image
+    const iconImage = new Image();
+    iconImage.src = 'https://via.placeholder.com/40/FF0000/FFFFFF?text=%20'; // Replace with your own icon image URL
+
+    // Initial icon position
+    let iconPosition = { x: 0, y: 0 };
+
+    // Goal position
+    const goalPosition = { x: matrix[0].length - 1, y: matrix.length - 1 };
+
+    // Define game over positions
+    const gameOverPositions = [
+        { x: 9, y: 2 }, // Position other than the required destination
+        { x: 4, y: 9 },
+        { x: 0, y: 3 },
+        { x: 0, y: 6 }
+    ];
+
+    // Draw the maze and background
+    function drawMaze(matrix, ctx, cellSize) {
+        for (let i = 0; i < matrix.length; i++) {
+            for (let j = 0; j < matrix[i].length; j++) {
+                const x = j * cellSize;
+                const y = i * cellSize;
+
+                // Draw maze paths with a light gray color
+                ctx.fillStyle = '#E0E0E0';
+                ctx.fillRect(x, y, cellSize, cellSize);
+
+                // Draw maze walls with a darker color
+                if (matrix[i][j] === 1) {
+                    ctx.fillStyle = '#333333';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                }
+            }
+        }
+
+        // Draw goal
+        ctx.fillStyle = "green";
+        ctx.fillRect(goalPosition.x * cellSize + cellSize / 4, goalPosition.y * cellSize + cellSize / 4, cellSize / 2, cellSize / 2);
+
+        // Draw game over positions
+        ctx.fillStyle = "#E0E0E0";
+        gameOverPositions.forEach(pos => {
+            ctx.fillRect(pos.x * cellSize + cellSize / 4, pos.y * cellSize + cellSize / 4, cellSize / 2, cellSize / 2);
+        });
+    }
+
+    // Draw the icon at the current position
+    function drawIcon(position, ctx, cellSize) {
+        ctx.drawImage(iconImage, position.x * cellSize + cellSize / 4, position.y * cellSize + cellSize / 4, cellSize / 2, cellSize / 2);
+    }
+
+    // Move the icon with a smooth animation
+    function moveIcon(direction) {
+        const { x, y } = iconPosition;
+        let newX = x, newY = y;
+
+        switch (direction) {
+            case "UP":
+                newY = y - 1;
+                break;
+            case "DOWN":
+                newY = y + 1;
+                break;
+            case "LEFT":
+                newX = x - 1;
+                break;
+            case "RIGHT":
+                newX = x + 1;
+                break;
+        }
+
+        if (newX >= 0 && newY >= 0 && newX < matrix[0].length && newY < matrix.length && matrix[newY][newX] === 0) {
+            iconPosition = { x: newX, y: newY };
+            redraw();
+            checkGameOver();
+            checkGoal();
+        }
+    }
+
+    // Check if the icon has reached the goal
+    function checkGoal() {
+        const { x, y } = iconPosition;
+        if (x === goalPosition.x && y === goalPosition.y) {
+            document.getElementById('message').innerText = "Congratulations! You've reached the goal!";
+            playSound('https://www.soundjay.com/button/beep-07.wav'); // Replace with your own sound URL
+            document.removeEventListener('keydown', handleKeydown);
+        }
+    }
+
+    // Check if the icon has reached a game over position
+    function checkGameOver() {
+        const { x, y } = iconPosition;
+        const gameOver = gameOverPositions.some(pos => pos.x === x && pos.y === y);
+        if (gameOver) {
+            document.getElementById('message').innerText = "Game Over!";
+            resetMaze();
+            playSound('https://www.soundjay.com/button/beep-10.wav'); // Replace with your own sound URL
+            document.removeEventListener('keydown', handleKeydown);
+        }
+    }
+
+    
+
+    // Redraw the maze and icon
+    function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawMaze(matrix, ctx, cellSize);
+        drawIcon(iconPosition, ctx, cellSize);
+    }
+
+    // Reset the maze to the initial state
+    function resetMaze() {
+        iconPosition = { x: 0, y: 0 };
+        document.getElementById('message').innerText = '';
+        redraw();
+        document.addEventListener('keydown', handleKeydown);
+    }
+
+    // Initialize the maze and icon
+    drawMaze(matrix, ctx, cellSize);
+    iconImage.onload = () => drawIcon(iconPosition, ctx, cellSize);
+
+    // Handle keyboard controls
+    function handleKeydown(e) {
+        switch (e.key) {
+            case 'ArrowUp':
+                moveIcon('UP');
+                break;
+            case 'ArrowDown':
+                moveIcon('DOWN');
+                break;
+            case 'ArrowLeft':
+                moveIcon('LEFT');
+                break;
+            case 'ArrowRight':
+                moveIcon('RIGHT');
+                break;
+        }
+    }
+
+    // Attach event listener for keyboard controls
+    document.addEventListener('keydown', handleKeydown);
+
+    // Example: Moving the icon based on a string of directions
+    const directions = ["RIGHT", "DOWN", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "DOWN", "DOWN", "DOWN", "DOWN", "RIGHT", "RIGHT", "RIGHT"];
+    let i = 0;
+
+    function executeMovement() {
+        if (i < directions.length) {
+            moveIcon(directions[i]);
+            i++;
+            setTimeout(executeMovement, 250); // Delay between movements
+        }
+    }
+
+    executeMovement();
+
+</script>
+
+</body>
+</html>
